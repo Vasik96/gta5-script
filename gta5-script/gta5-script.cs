@@ -9,6 +9,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using static gtamod;
+using System.Diagnostics.Eventing.Reader;
+using System.Diagnostics;
+
 
 public class gtamod : Script
 {
@@ -31,8 +34,7 @@ public class gtamod : Script
 
     private bool isCayoPericoEnabled = false;
     private bool isFading = false; // Track if fading is in progress
-    public bool isCayoProximityEnabled = true; //fucking piece of shit
-
+    public bool isCayoProximityEnabled = true; 
 
     public gtamod()
     {
@@ -50,41 +52,349 @@ public class gtamod : Script
 
         // Create blips
         CreateBlips();
+        LoadCayoIPLs();
 
 
         // Show startup message
-        Notification.Show("Enabled more locations, enjoy.");
-        
+        GTA.UI.Screen.ShowHelpText("Enabled more locations, enjoy.");
+
 
 
     }
 
 
-    private void SetRandomWeatherForNY()
+    private void LoadCayoIPLs()
     {
-        Random random = new Random();
-        int weatherIndex = random.Next(3); // 0, 1, or 2 for SNOW, SNOWLIGHT, BLIZZARD
+        string[] iplNames = new string[]
+                {
+                "h4_mph4_terrain_01_grass_0",
+                "h4_mph4_terrain_01_grass_1",
+                "h4_mph4_terrain_02_grass_0",
+                "h4_mph4_terrain_02_grass_1",
+                "h4_mph4_terrain_02_grass_2",
+                "h4_mph4_terrain_02_grass_3",
+                "h4_mph4_terrain_04_grass_0",
+                "h4_mph4_terrain_04_grass_1",
+                "h4_mph4_terrain_05_grass_0",
+                "h4_mph4_terrain_06_grass_0",
+                "h4_islandx_terrain_01",
+                "h4_islandx_terrain_01_lod",
+                "h4_islandx_terrain_01_slod",
+                "h4_islandx_terrain_02",
+                "h4_islandx_terrain_02_lod",
+                "h4_islandx_terrain_02_slod",
+                "h4_islandx_terrain_03",
+                "h4_islandx_terrain_03_lod",
+                "h4_islandx_terrain_04",
+                "h4_islandx_terrain_04_lod",
+                "h4_islandx_terrain_04_slod",
+                "h4_islandx_terrain_05",
+                "h4_islandx_terrain_05_lod",
+                "h4_islandx_terrain_05_slod",
+                "h4_islandx_terrain_06",
+                "h4_islandx_terrain_06_lod",
+                "h4_islandx_terrain_06_slod",
+                "h4_islandx_terrain_props_05_a",
+                "h4_islandx_terrain_props_05_a_lod",
+                "h4_islandx_terrain_props_05_b",
+                "h4_islandx_terrain_props_05_b_lod",
+                "h4_islandx_terrain_props_05_c",
+                "h4_islandx_terrain_props_05_c_lod",
+                "h4_islandx_terrain_props_05_d",
+                "h4_islandx_terrain_props_05_d_lod",
+                "h4_islandx_terrain_props_05_d_slod",
+                "h4_islandx_terrain_props_05_e",
+                "h4_islandx_terrain_props_05_e_lod",
+                "h4_islandx_terrain_props_05_e_slod",
+                "h4_islandx_terrain_props_05_f",
+                "h4_islandx_terrain_props_05_f_lod",
+                "h4_islandx_terrain_props_05_f_slod",
+                "h4_islandx_terrain_props_06_a",
+                "h4_islandx_terrain_props_06_a_lod",
+                "h4_islandx_terrain_props_06_a_slod",
+                "h4_islandx_terrain_props_06_b",
+                "h4_islandx_terrain_props_06_b_lod",
+                "h4_islandx_terrain_props_06_b_slod",
+                "h4_islandx_terrain_props_06_c",
+                "h4_islandx_terrain_props_06_c_lod",
+                "h4_islandx_terrain_props_06_c_slod",
+                "h4_mph4_terrain_01",
+                "h4_mph4_terrain_01_long_0",
+                "h4_mph4_terrain_02",
+                "h4_mph4_terrain_03",
+                "h4_mph4_terrain_04",
+                "h4_mph4_terrain_05",
+                "h4_mph4_terrain_06",
+                "h4_mph4_terrain_06_strm_0",
+                "h4_mph4_terrain_lod",
+                "h4_mph4_terrain_occ_00",
+                "h4_mph4_terrain_occ_01",
+                "h4_mph4_terrain_occ_02",
+                "h4_mph4_terrain_occ_03",
+                "h4_mph4_terrain_occ_04",
+                "h4_mph4_terrain_occ_05",
+                "h4_mph4_terrain_occ_06",
+                "h4_mph4_terrain_occ_07",
+                "h4_mph4_terrain_occ_08",
+                "h4_mph4_terrain_occ_09",
+                "h4_boatblockers",
+                "h4_islandx",
+                "h4_islandx_disc_strandedshark",
+                "h4_islandx_disc_strandedshark_lod",
+                "h4_islandx_disc_strandedwhale",
+                "h4_islandx_disc_strandedwhale_lod",
+                "h4_islandx_props",
+                "h4_islandx_props_lod",
+                "h4_islandx_sea_mines",
+                "h4_mph4_island",
+                "h4_mph4_island_long_0",
+                "h4_mph4_island_strm_0",
+                "h4_aa_guns",
+                "h4_aa_guns_lod",
+                "h4_beach",
+                "h4_beach_bar_props",
+                "h4_beach_lod",
+                "h4_beach_party",
+                "h4_beach_party_lod",
+                "h4_beach_props",
+                "h4_beach_props_lod",
+                "h4_beach_props_party",
+                "h4_beach_props_slod",
+                "h4_beach_slod",
+                "h4_islandairstrip",
+                "h4_islandairstrip_doorsclosed",
+                "h4_islandairstrip_doorsclosed_lod",
+                "h4_islandairstrip_hangar_props",
+                "h4_islandairstrip_hangar_props_lod",
+                "h4_islandairstrip_hangar_props_slod",
+                "h4_islandairstrip_lod",
+                "h4_islandairstrip_props",
+                "h4_islandairstrip_propsb",
+                "h4_islandairstrip_propsb_lod",
+                "h4_islandairstrip_propsb_slod",
+                "h4_islandairstrip_props_lod",
+                "h4_islandairstrip_props_slod",
+                "h4_islandairstrip_slod",
+                "h4_islandxcanal_props",
+                "h4_islandxcanal_props_lod",
+                "h4_islandxcanal_props_slod",
+                "h4_islandxdock",
+                "h4_islandxdock_lod",
+                "h4_islandxdock_props",
+                "h4_islandxdock_props_2",
+                "h4_islandxdock_props_2_lod",
+                "h4_islandxdock_props_2_slod",
+                "h4_islandxdock_props_lod",
+                "h4_islandxdock_props_slod",
+                "h4_islandxdock_slod",
+                "h4_islandxdock_water_hatch",
+                "h4_islandxtower",
+                "h4_islandxtower_lod",
+                "h4_islandxtower_slod",
+                "h4_islandxtower_veg",
+                "h4_islandxtower_veg_lod",
+                "h4_islandxtower_veg_slod",
+                "h4_islandx_barrack_hatch",
+                "h4_islandx_barrack_props",
+                "h4_islandx_barrack_props_lod",
+                "h4_islandx_barrack_props_slod",
+                "h4_islandx_checkpoint",
+                "h4_islandx_checkpoint_lod",
+                "h4_islandx_checkpoint_props",
+                "h4_islandx_checkpoint_props_lod",
+                "h4_islandx_checkpoint_props_slod",
+                "h4_islandx_maindock",
+                "h4_islandx_maindock_lod",
+                "h4_islandx_maindock_props",
+                "h4_islandx_maindock_props_2",
+                "h4_islandx_maindock_props_2_lod",
+                "h4_islandx_maindock_props_2_slod",
+                "h4_islandx_maindock_props_lod",
+                "h4_islandx_maindock_props_slod",
+                "h4_islandx_maindock_slod",
+                "h4_islandx_mansion",
+                "h4_islandx_mansion_b",
+                "h4_islandx_mansion_b_lod",
+                "h4_islandx_mansion_b_side_fence",
+                "h4_islandx_mansion_b_slod",
+                "h4_islandx_mansion_entrance_fence",
+                "h4_islandx_mansion_guardfence",
+                "h4_islandx_mansion_lights",
+                "h4_islandx_mansion_lockup_01",
+                "h4_islandx_mansion_lockup_01_lod",
+                "h4_islandx_mansion_lockup_02",
+                "h4_islandx_mansion_lockup_02_lod",
+                "h4_islandx_mansion_lockup_03",
+                "h4_islandx_mansion_lockup_03_lod",
+                "h4_islandx_mansion_lod",
+                "h4_islandx_mansion_office",
+                "h4_islandx_mansion_office_lod",
+                "h4_islandx_mansion_props",
+                "h4_islandx_mansion_props_lod",
+                "h4_islandx_mansion_props_slod",
+                "h4_islandx_mansion_slod",
+                "h4_islandx_mansion_vault",
+                "h4_islandx_mansion_vault_lod",
+                "h4_island_padlock_props",
+                "h4_mansion_gate_closed",
+                "h4_mansion_remains_cage",
+                "h4_mph4_airstrip",
+                "h4_mph4_airstrip_interior_0_airstrip_hanger",
+                "h4_mph4_beach",
+                //"h4_airstrip_hanger", //not IPL, it is the interior
+                "h4_mph4_dock",
+                "h4_mph4_island_lod",
+                "h4_mph4_island_ne_placement",
+                "h4_mph4_island_nw_placement",
+                "h4_mph4_island_se_placement",
+                "h4_mph4_island_sw_placement",
+                "h4_mph4_mansion",
+                "h4_mph4_mansion_b",
+                "h4_mph4_mansion_b_strm_0",
+                "h4_mph4_mansion_strm_0",
+                "h4_mph4_wtowers",
+                "h4_ne_ipl_00",
+                "h4_ne_ipl_00_lod",
+                "h4_ne_ipl_00_slod",
+                "h4_ne_ipl_01",
+                "h4_ne_ipl_01_lod",
+                "h4_ne_ipl_01_slod",
+                "h4_ne_ipl_02",
+                "h4_ne_ipl_02_lod",
+                "h4_ne_ipl_02_slod",
+                "h4_ne_ipl_03",
+                "h4_ne_ipl_03_lod",
+                "h4_ne_ipl_03_slod",
+                "h4_ne_ipl_04",
+                "h4_ne_ipl_04_lod",
+                "h4_ne_ipl_04_slod",
+                "h4_ne_ipl_05",
+                "h4_ne_ipl_05_lod",
+                "h4_ne_ipl_05_slod",
+                "h4_ne_ipl_06",
+                "h4_ne_ipl_06_lod",
+                "h4_ne_ipl_06_slod",
+                "h4_ne_ipl_07",
+                "h4_ne_ipl_07_lod",
+                "h4_ne_ipl_07_slod",
+                "h4_ne_ipl_08",
+                "h4_ne_ipl_08_lod",
+                "h4_ne_ipl_08_slod",
+                "h4_ne_ipl_09",
+                "h4_ne_ipl_09_lod",
+                "h4_ne_ipl_09_slod",
+                "h4_nw_ipl_00",
+                "h4_nw_ipl_00_lod",
+                "h4_nw_ipl_00_slod",
+                "h4_nw_ipl_01",
+                "h4_nw_ipl_01_lod",
+                "h4_nw_ipl_01_slod",
+                "h4_nw_ipl_02",
+                "h4_nw_ipl_02_lod",
+                "h4_nw_ipl_02_slod",
+                "h4_nw_ipl_03",
+                "h4_nw_ipl_03_lod",
+                "h4_nw_ipl_03_slod",
+                "h4_nw_ipl_04",
+                "h4_nw_ipl_04_lod",
+                "h4_nw_ipl_04_slod",
+                "h4_nw_ipl_05",
+                "h4_nw_ipl_05_lod",
+                "h4_nw_ipl_05_slod",
+                "h4_nw_ipl_06",
+                "h4_nw_ipl_06_lod",
+                "h4_nw_ipl_06_slod",
+                "h4_nw_ipl_07",
+                "h4_nw_ipl_07_lod",
+                "h4_nw_ipl_07_slod",
+                "h4_nw_ipl_08",
+                "h4_nw_ipl_08_lod",
+                "h4_nw_ipl_08_slod",
+                "h4_nw_ipl_09",
+                "h4_nw_ipl_09_lod",
+                "h4_nw_ipl_09_slod",
+                "h4_se_ipl_00",
+                "h4_se_ipl_00_lod",
+                "h4_se_ipl_00_slod",
+                "h4_se_ipl_01",
+                "h4_se_ipl_01_lod",
+                "h4_se_ipl_01_slod",
+                "h4_se_ipl_02",
+                "h4_se_ipl_02_lod",
+                "h4_se_ipl_02_slod",
+                "h4_se_ipl_03",
+                "h4_se_ipl_03_lod",
+                "h4_se_ipl_03_slod",
+                "h4_se_ipl_04",
+                "h4_se_ipl_04_lod",
+                "h4_se_ipl_04_slod",
+                "h4_se_ipl_05",
+                "h4_se_ipl_05_lod",
+                "h4_se_ipl_05_slod",
+                "h4_se_ipl_06",
+                "h4_se_ipl_06_lod",
+                "h4_se_ipl_06_slod",
+                "h4_se_ipl_07",
+                "h4_se_ipl_07_lod",
+                "h4_se_ipl_07_slod",
+                "h4_se_ipl_08",
+                "h4_se_ipl_08_lod",
+                "h4_se_ipl_08_slod",
+                "h4_se_ipl_09",
+                "h4_se_ipl_09_lod",
+                "h4_se_ipl_09_slod",
+                "h4_sw_ipl_00",
+                "h4_sw_ipl_00_lod",
+                "h4_sw_ipl_00_slod",
+                "h4_sw_ipl_01",
+                "h4_sw_ipl_01_lod",
+                "h4_sw_ipl_01_slod",
+                "h4_sw_ipl_02",
+                "h4_sw_ipl_02_lod",
+                "h4_sw_ipl_02_slod",
+                "h4_sw_ipl_03",
+                "h4_sw_ipl_03_lod",
+                "h4_sw_ipl_03_slod",
+                "h4_sw_ipl_04",
+                "h4_sw_ipl_04_lod",
+                "h4_sw_ipl_04_slod",
+                "h4_sw_ipl_05",
+                "h4_sw_ipl_05_lod",
+                "h4_sw_ipl_05_slod",
+                "h4_sw_ipl_06",
+                "h4_sw_ipl_06_lod",
+                "h4_sw_ipl_06_slod",
+                "h4_sw_ipl_07",
+                "h4_sw_ipl_07_lod",
+                "h4_sw_ipl_07_slod",
+                "h4_sw_ipl_08",
+                "h4_sw_ipl_08_lod",
+                "h4_sw_ipl_08_slod",
+                "h4_sw_ipl_09",
+                "h4_sw_ipl_09_lod",
+                "h4_sw_ipl_09_slod",
+                "h4_underwater_gate_closed",
+                "h4_islandx_placement_01",
+                "h4_islandx_placement_02",
+                "h4_islandx_placement_03",
+                "h4_islandx_placement_04",
+                "h4_islandx_placement_05",
+                "h4_islandx_placement_06",
+                "h4_islandx_placement_07",
+                "h4_islandx_placement_08",
+                "h4_islandx_placement_09",
+                "h4_islandx_placement_10",
+                "h4_mph4_island_placement",
+                "h4_int_placement_h4_interior_1_dlc_int_02_h4_milo_"
 
-        switch (weatherIndex)
+                };
+
+        // Loop through each IPL name and request it
+        foreach (string iplName in iplNames)
         {
-            case 0:
-                Function.Call(Hash.SET_OVERRIDE_WEATHER, "SNOW");
-                break;
-            case 1:
-                Function.Call(Hash.SET_OVERRIDE_WEATHER, "SNOWLIGHT");
-                break;
-            case 2:
-                Function.Call(Hash.SET_OVERRIDE_WEATHER, "BLIZZARD");
-                break;
+            Function.Call<bool>(Hash.REQUEST_IPL, iplName);
         }
     }
-
-    private void ClearOverrideWeather()
-    {
-        Function.Call(Hash.SET_OVERRIDE_WEATHER, "CLEAR");
-        Function.Call(Hash.CLEAR_OVERRIDE_WEATHER);
-    }
-
 
     private void EnableMpMaps()
     {
@@ -118,6 +428,17 @@ public class gtamod : Script
                 "hei_Carrier_int6",
                 "hei_carrier_LODLights",
                 "hei_bi_hw1_13_door",
+                //military base aircraft carrier - dlc: mp 2024_01 (summer)
+                "m24_1_carrier",
+                "m24_1_carrier_int1",
+                "m24_1_carrier_int2",
+                "m24_1_carrier_int3",
+                "m24_1_carrier_int4",
+                "m24_1_carrier_int5",
+                "m24_1_carrier_int6",
+                "m24_1_carrier_ladders",
+                "m24_1_legacyfixes",
+                "m24_1_pizzasigns",
                 //Additional stuff
                 "pink_diamond_set",
                 "FINBANK",
@@ -182,6 +503,38 @@ public class gtamod : Script
     }
 
 
+    private void SetRandomWeatherForNY()
+    {
+        Random random = new Random();
+        int weatherIndex = random.Next(100); // Generate a number between 0 and 99
+
+        if (weatherIndex < 38)
+        {
+            // 38% chance for "SNOWLIGHT"
+            Function.Call(Hash.SET_OVERRIDE_WEATHER, "SNOWLIGHT");
+        }
+        else if (weatherIndex < 69)
+        {
+            // 31% chance for "SNOW"
+            Function.Call(Hash.SET_OVERRIDE_WEATHER, "SNOW");
+        }
+        else
+        {
+            // 31% chance for "BLIZZARD"
+            Function.Call(Hash.SET_OVERRIDE_WEATHER, "BLIZZARD");
+        }
+    }
+
+
+    private void ClearOverrideWeather()
+    {
+        Function.Call(Hash.SET_OVERRIDE_WEATHER, "CLEAR");
+        Function.Call(Hash.CLEAR_OVERRIDE_WEATHER);
+    }
+
+
+
+
     public class LoadNY  //NY map hash 0x9133955F1A2DA957 , block creating waypoints hash 0x58FADDED207897DC
     {
         public static bool isLoaded = false;
@@ -212,8 +565,8 @@ public class gtamod : Script
             "prologue02",
             "prologue03",
             "prologue03b",
-            "prologue03_grv_cov",
-            "prologue03_grv_cov_lod",
+            "prologue03_grv_dug",
+            "prologue03_grv_dug_lod",
             "prologue_grv_torch",
             "prologue04",
             "prologue04b",
@@ -234,11 +587,10 @@ public class gtamod : Script
                 foreach (string iplName in iplNames)
                 {
                     Function.Call(Hash.REQUEST_IPL, iplName);
-                    
+
                     Function.Call((Hash)0x9133955F1A2DA957, true); //NY map
-                    Function.Call(Hash.SET_ALLOW_STREAM_PROLOGUE_NODES, true); //nodes for the location - confirmed it works
-                   //TODO: train spawning
-                    
+                    Function.Call(Hash.SET_ALLOW_STREAM_PROLOGUE_NODES, true); //nodes for the location - confirmed it works, hash: 0x228E5C6AD4D74BFD
+
 
                     //enable zone - THIS DOES NOT CRASH FINALLY
                     int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "PrLog");
@@ -254,7 +606,6 @@ public class gtamod : Script
                     Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 3186.534f, -4832.798f, 109.8148f, 3202.187f, -4833.993f, 114.815f, 16, false, true, true);
                     //1 side road had to be added manually
                     Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 5493.3f, -5344.76f, 81.8f, 5483.187f, -5137.3f, 75.1f, 4, false, true, true);
-
                 }
 
 
@@ -263,7 +614,7 @@ public class gtamod : Script
                 mod.isCayoProximityEnabled = false; // Disable Cayo Perico proximity check when NY is loaded
             }
         }
-      
+
 
 
         public static void UnloadNY(gtamod mod)
@@ -293,8 +644,8 @@ public class gtamod : Script
             "prologue02",
             "prologue03",
             "prologue03b",
-            "prologue03_grv_cov",
-            "prologue03_grv_cov_lod",
+            "prologue03_grv_dug",
+            "prologue03_grv_dug_lod",
             "prologue_grv_torch",
             "prologue04",
             "prologue04b",
@@ -318,27 +669,18 @@ public class gtamod : Script
                     Function.Call(Hash.REMOVE_IPL, iplName);
                     Function.Call((Hash)0x9133955F1A2DA957, false);
                     Function.Call(Hash.SET_ALLOW_STREAM_PROLOGUE_NODES, false);
-                    //Function.Call(Hash.SET_ZONE_ENABLED, "PrLog", false);
-                    //Function.Call(Hash.SET_MAPDATACULLBOX_ENABLED, "prologue", false);
-                    //Function.Call(Hash.SET_MAPDATACULLBOX_ENABLED, "Prologue_Main", false);
-                    //Enable paths - no crash
-                       //roads: bank - city
-                    /*Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 5526.24f, -5137.23f, 61.78925f, 3679.327f, -4973.879f, 125.0828f, 192, false, true, true);
-                    Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 3691.211f, -4941.24f, 94.59368f, 3511.115f, -4869.191f, 126.7621f, 16, false, true, true);
-                    Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 3510.004f, -4865.81f, 94.69557f, 3204.424f, -4833.817f, 126.8152f, 16, false, true, true);
-                    Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 3186.534f, -4832.798f, 109.8148f, 3202.187f, -4833.993f, 114.815f, 16, false, true, true);*/
-                    //roads: city - bank
-                    
-
 
                     int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "PrLog");
                     Function.Call(Hash.SET_ZONE_ENABLED, zoneId, false);
 
-                    //Function.Call(Hash.SWITCH_TRAIN_TRACK, "trains10.dat", false); // Enable Yankton train track
-                    //Function.Call(Hash.SWITCH_TRAIN_TRACK, "trains12.dat", false); // Enable Yankton prologue mission train track
-
-
-
+                    Function.Call(Hash.SET_MAPDATACULLBOX_ENABLED, "prologue", false);
+                    Function.Call(Hash.SET_MAPDATACULLBOX_ENABLED, "Prologue_Main", false); //idk what these do, but they are related to NY, so ill keep them here
+                    Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 5655.24f, -5142.23f, 61.78925f, 3679.327f, -4973.879f, 125.0828f, 192, false, false, false);
+                    Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 3691.211f, -4941.24f, 94.59368f, 3511.115f, -4869.191f, 126.7621f, 16, false, false, false);
+                    Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 3510.004f, -4865.81f, 94.69557f, 3204.424f, -4833.817f, 126.8152f, 16, false, false, false);
+                    Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 3186.534f, -4832.798f, 109.8148f, 3202.187f, -4833.993f, 114.815f, 16, false, false, false);
+                    //1 side road had to be added manually
+                    Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 5493.3f, -5344.76f, 81.8f, 5483.187f, -5137.3f, 75.1f, 4, false, false, false);
                 }
 
                 mod.ClearOverrideWeather();
@@ -378,7 +720,7 @@ public class gtamod : Script
     {
         // Create blip at original LSIA location (plane icon on the map)
         lsiaBlip = World.CreateBlip(lsiaBlipLocation);
-        lsiaBlip.Sprite = BlipSprite.Airport;
+        lsiaBlip.Sprite = BlipSprite.CayoPericoSeries;
         lsiaBlip.Color = BlipColor.Yellow;
         lsiaBlip.Name = "Cayo Perico";
 
@@ -401,8 +743,6 @@ public class gtamod : Script
         NorthYBlip.Color = BlipColor.Blue;
         NorthYBlip.Name = "Los Santos";
         NorthYBlip.Alpha = 0; //make it invisible if not on NY
-
-
     }
 
     private void DrawMarkers()
@@ -449,35 +789,42 @@ public class gtamod : Script
         );
     }
 
-    private void OnTick(object sender, EventArgs e)
+
+
+
+private void OnTick(object sender, EventArgs e)
     {
+
+
         // Draw markers continuously
         DrawMarkers();
-
         // Perform proximity check for Cayo Perico
+
+
         if (isCayoProximityEnabled)
         {
             CayoPericoProximity();
         }
+
         // Check if player is near LSIA location
-        if (Game.Player.Character.Position.DistanceTo(lsiaBlipLocation) < 1f)
+        if (Game.Player.Character.Position.DistanceTo(lsiaBlipLocation) < 1.5f)
         {
-            Notification.Show("Press ~o~E~s~ to fly to Cayo Perico");
+            GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to fly to ~y~Cayo Perico~s~");
         }
         // Check if player is near Cayo Perico location
-        else if (Game.Player.Character.Position.DistanceTo(cayoBlipLocation) < 1f)
+        else if (Game.Player.Character.Position.DistanceTo(cayoBlipLocation) < 1.5f)
         {
-            Notification.Show("Press ~o~E~s~ to return to Los Santos");
+            GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to return to Los Santos");
         }
         // Check if player is near North Yankton location
-        else if (Game.Player.Character.Position.DistanceTo(NYlsiaBlip) < 1f)
+        else if (Game.Player.Character.Position.DistanceTo(NYlsiaBlip) < 1.5f)
         {
-            Notification.Show("Press ~o~E~s~ to fly to North Yankton");
+            GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to fly to ~b~North Yankton~s~");
         }
         // Check if player is at North Yankton and can return to LSIA
-        else if (Game.Player.Character.Position.DistanceTo(NY_BlipLocation) < 1f)
+        else if (Game.Player.Character.Position.DistanceTo(NY_BlipLocation) < 1.5f)
         {
-            Notification.Show("Press ~o~E~s~ to return to Los Santos");
+            GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to return to Los Santos");
         }
 
         // Update Cayo Perico blip visibility
@@ -492,26 +839,44 @@ public class gtamod : Script
         // Update LSIA -> North Yankton blip visibility
         NorthYlsiaBlip.Alpha = (LoadNY.isLoaded || isCayoPericoEnabled) ? 0 : 255; // || means "or"
 
+
         //check if player is below Z: 30 each tick
         NorthYanktonPositionCheck();
     }
 
-
+    private Vector2 cayoCenter = new Vector2(4990f, -5100f);
 
     private void CayoPericoProximity()
     {
-        float distanceToCayo = Game.Player.Character.Position.DistanceTo(cayoBlipLocation);
-        if (distanceToCayo < 1800.0f && !isCayoPericoEnabled && !isFading)
+        Vector3 playerPosition = Game.Player.Character.Position;
+        Vector2 playerPosition2D = new Vector2(playerPosition.X, playerPosition.Y);
+
+        float distanceToCayo = Vector2.Distance(playerPosition2D, cayoCenter);
+
+        if (distanceToCayo < 2000.0f && !isCayoPericoEnabled && !isFading)
         {
-            FadeScreenAndHandleCayoPerico(true);
+            manuallyTravelling = true;
+            EnableCayo(true);
         }
-        else if (distanceToCayo >= 1800.0f && isCayoPericoEnabled && !isFading)
+        else if (distanceToCayo >= 2000.0f && isCayoPericoEnabled && !isFading)
         {
-            FadeScreenAndHandleCayoPerico(false);
+            manuallyTravelling = false;
+            EnableCayo(false);
         }
     }
 
 
+    private void EnableCayo(bool enableCayoPerico)
+    {
+        //Function.Call(Hash.DO_SCREEN_FADE_OUT, 700);
+        Wait(1000);
+        EnableCayoPerico(enableCayoPerico);
+        Wait(1000);
+        //Function.Call(Hash.DO_SCREEN_FADE_IN, 700);
+    }
+
+
+    
 
 
     //***********************************************************************************************************
@@ -520,6 +885,9 @@ public class gtamod : Script
 
     //! this pattern is followed: bool toCayoPerico, bool toNY, bool isManualTeleport, bool toNYlsia = false
     //bool can be either true or false
+
+
+    public bool isF5Pressed = false;
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
         // Check if player is at LSIA and pressed "E" to teleport to Cayo Perico
@@ -527,7 +895,7 @@ public class gtamod : Script
         {
             if (!isCayoPericoEnabled)
             {
-                FadeScreenAndTeleport(true, false, true); // Teleport to Cayo Perico
+                HandleLocations(true, false, true); // Teleport to Cayo Perico
             }
         }
         // Check if player is at Cayo Perico and pressed "E" to teleport back to Los Santos
@@ -535,60 +903,181 @@ public class gtamod : Script
         {
             if (isCayoPericoEnabled)
             {
-                FadeScreenAndTeleport(false, false, true); // Teleport to Los Santos from Cayo Perico
+                HandleLocations(false, false, true); // Teleport to Los Santos from Cayo Perico
+                manuallyTravelling = false;
+                CayoTime();
             }
         }
         // Check if player is at LSIA for North Yankton and pressed "E" to teleport to North Yankton
         else if (e.KeyCode == Keys.E && Game.Player.Character.Position.DistanceTo(NYlsiaBlip) < 1.5f)
         {
-            FadeScreenAndTeleport(false, true, true); // Teleport to North Yankton
+            HandleLocations(false, true, true); // Teleport to North Yankton
         }
         else if (e.KeyCode == Keys.E && Game.Player.Character.Position.DistanceTo(NY_BlipLocation) < 1.5f)
         {
-            FadeScreenAndTeleport(false, false, true, true); // Teleport to LSIA from North Yankton
+            HandleLocations(false, false, true, true); // Teleport to LSIA from North Yankton
+        }
+        else if (e.KeyCode == Keys.F5)
+        {
+            Function.Call(Hash.TRIGGER_MUSIC_EVENT, "MIC1_TREVOR_PLANE");
+        }
+        else if (e.KeyCode == Keys.F6)
+        {
+            Function.Call(Hash.CANCEL_MUSIC_EVENT, "MIC1_TREVOR_PLANE");
         }
     }
+
 
     //***********************************************************************************************************
     //************************   hashes for cayo   **************************************************************
     //***********************************************************************************************************
+
+
     private void EnableCayoPerico(bool enable)
     {
         if (enable)
         {
-            Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", true, false); // Load Cayo Perico Island
+            
+            // Load Cayo Perico Island
+            //Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", true, false); // Load Cayo Perico Island, islandhopper func.
+            Function.Call((Hash)0x7E3F55ED251B76D3, 1); //1 - heistisland, 0 - default
+
+            // Disable Yankton zone before loading Cayo Perico
+            int yanktonZoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "PrLog");
+            Function.Call(Hash.SET_ZONE_ENABLED, yanktonZoneId, false);
+            
+            //disable arena stuff
+            Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "SE_DLC_AW_ARENA_CONSTRUCTION_01", false);
+            Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "SE_DLC_AW_ARENA_CROWD_BACKGROUND_MAIN", false);
+            Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "SE_DLC_AW_CROWD_EXTERIOR_LOBBY", false);
+            Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "SE_DLC_AW_CROWD_INTERIOR_LOBBY", false);
+
+
+            //string cayoZoneName = Function.Call<string>(Hash.GET_NAME_OF_ZONE, 4840.571f, -5174.425f, 2.0f);
+            //int cayoZone = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, cayoZoneName);
+            //Function.Call(Hash.SET_ZONE_ENABLED, cayoZoneName, true);
+
+            // Enable minimap and reveal unexplored parts of the map
             Function.Call((Hash)0x5E1460624D194A38, true); // Load the minimap and map
-            Function.Call((Hash)0xF8DEE0A5600CBB93, true);  //this reveals the grayed/unexplored map parts in story mode, without having to explore it, since cayo map is bugged in story mode, this has to be used.
+            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Disabled_Zones", 0, 1);
+            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Zones", 1, 1);
+            //Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "se_dlc_hei4_island_beach_party_music_new_01_left", true);
+            //Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "se_dlc_hei4_island_beach_party_music_new_02_right", true);
+            /*int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "IsHeistZone");
+            Function.Call(Hash.SET_ZONE_ENABLED, zoneId, true);*/
+            Function.Call((Hash)0xF8DEE0A5600CBB93, true);  // Reveal the grayed/unexplored map parts in story mode
 
             // Enable scenarios and NPC spawning
             Function.Call(Hash.SET_SCENARIO_GROUP_ENABLED, "Heist_Island_Peds", true);
-            Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", true); // set island hopper enabled
-            Function.Call((Hash)0xF74B1FFA4A15FBEA, 1); // enable path nodes so routing works on island
-            //enable zone
-            int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "IsHeistZone");
-            Function.Call(Hash.SET_ZONE_ENABLED, zoneId, true);
+            Function.Call((Hash)0x53797676AD34A9AA, true); // unknown
+            Function.Call((Hash)0xF74B1FFA4A15FBEA, 1); // Enable path nodes so routing works on the island
+            LoadCayoIPLs(); //load
 
 
+            //interior
+            Function.Call(Hash.REQUEST_IPL, "h4_mph4_airstrip_interior_0_airstrip_hanger");
+            while (!Function.Call<bool>(Hash.IS_IPL_ACTIVE, "h4_mph4_airstrip_interior_0_airstrip_hanger"))
+            {
+                Script.Wait(0);
+                GTA.UI.Screen.ShowHelpText("a");
+            }
+            Function.Call(Hash.DISABLE_INTERIOR, 1104, false);
+            Function.Call(Hash.ACTIVATE_INTERIOR_ENTITY_SET, 1104, "island_hanger_padlock_props"); //interior ID: 1104, 739th interior
+            Function.Call(Hash.PIN_INTERIOR_IN_MEMORY, 1104);
+            Function.Call(Hash.REFRESH_INTERIOR, 1104);
+            
+
+
+            // Audio
+            //Function.Call(Hash.SET_AUDIO_FLAG, "PlayerOnDLCHeist4Island", 1);
+
+            //Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 6371.534f, -5965.798f, 200f, 3421.187f, -4374.993f, 0f, 384, false, true, true);
 
             // Radar configuration
             if (Function.Call<int>(Hash.GET_INTERIOR_FROM_ENTITY, Game.Player.Character) == 0)
             {
                 Function.Call(Hash.SET_RADAR_AS_EXTERIOR_THIS_FRAME);
-                Function.Call(Hash.SET_RADAR_AS_INTERIOR_THIS_FRAME, 0xc0a90510, 4700.0f, -5145.0f, 0, 0);
+                Function.Call(Hash.SET_RADAR_AS_INTERIOR_THIS_FRAME, "h4_fake_islandx", 4700.0f, -5145.0f, 0f, 0);
             }
 
             isCayoPericoEnabled = true;
+            Wait(2);
+            CayoTime();
         }
         else
         {
+            //Function.Call((Hash)
+            //, "HeistIsland", false); // Disable the Cayo Perico Island, island hopper func.
+            Function.Call((Hash)0x7E3F55ED251B76D3, 0); //1 - heistisland, 0 - default, LOAD_GLOBAL_WATER_TYPE func.
+
             // Disable scenarios and NPC spawning
-            Function.Call(Hash.SET_SCENARIO_GROUP_ENABLED, "Heist_Island_Peds", false);
-            Function.Call((Hash)0x5E1460624D194A38, false);
-            Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", false);
-            Function.Call((Hash)0xF74B1FFA4A15FBEA, 0); // disable path nodes so routing works on mainland
-            int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "IsHeistZone");
-            Function.Call(Hash.SET_ZONE_ENABLED, zoneId, true);
+            Function.Call(Hash.SET_SCENARIO_GROUP_ENABLED, "Heist_Island_Peds", false); 
+            Function.Call((Hash)0x5E1460624D194A38, false); //minimap, map
+            
+            Function.Call((Hash)0x53797676AD34A9AA, false); // unknown
+
+
+            Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "SE_DLC_AW_ARENA_CONSTRUCTION_01", true);
+            Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "SE_DLC_AW_ARENA_CROWD_BACKGROUND_MAIN", true);
+            Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "SE_DLC_AW_CROWD_EXTERIOR_LOBBY", true);
+            Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "SE_DLC_AW_CROWD_INTERIOR_LOBBY", true);
+
+            // Disable the roads in the area
+            //Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 6371.534f, -5965.798f, 200f, 3421.187f, -4374.993f, 0f, 384, false, false, false);
+
+            Function.Call((Hash)0xF74B1FFA4A15FBEA, 0); // Disable path nodes so routing works on mainland
+
+            //string cayoZoneName = Function.Call<string>(Hash.GET_NAME_OF_ZONE, 4840.571f, -5174.425f, 2.0f); // Example coordinates within Cayo Perico
+            //int cayoZone = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, cayoZoneName);
+            //Function.Call(Hash.SET_ZONE_ENABLED, cayoZone, false);
+
+            // Audio
+            //Function.Call(Hash.SET_AUDIO_FLAG, "PlayerOnDLCHeist4Island", 0);
+
+            // Disable Cayo Perico zone
+            /*int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "IsHeistZone");
+            Function.Call(Hash.SET_ZONE_ENABLED, zoneId, false);*/
+            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Zones", 0, 0);
+            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Disabled_Zones", 1, 0);
+            //Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "se_dlc_hei4_island_beach_party_music_new_01_left", false);
+            //Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "se_dlc_hei4_island_beach_party_music_new_02_right", false);
+
             isCayoPericoEnabled = false;
+            Wait(2);
+            CayoTime();
+            Wait(5);
+            LoadCayoIPLs();
+        }
+    }
+
+
+    private bool isCayoTimeSwitched = false;
+    private int previousHour = 0;
+    private int previousMinute = 0;
+    bool manuallyTravelling = false;
+
+    private void CayoTime()
+    {
+
+        if (manuallyTravelling == false)
+        {
+
+
+            if (isCayoPericoEnabled && !isCayoTimeSwitched)
+            {
+                previousHour = Function.Call<int>(Hash.GET_CLOCK_HOURS);
+                previousMinute = Function.Call<int>(Hash.GET_CLOCK_MINUTES);
+                int newHour = (previousHour + 12) % 24;
+                Function.Call(Hash.SET_CLOCK_TIME, newHour, previousMinute, 0);
+                isCayoTimeSwitched = true;
+            }
+            else if (!isCayoPericoEnabled && isCayoTimeSwitched)
+            {
+                int currentHour = Function.Call<int>(Hash.GET_CLOCK_HOURS);
+                int revertHour = (currentHour - 12 + 24) % 24; // Ensure we wrap around correctly
+                Function.Call(Hash.SET_CLOCK_TIME, revertHour, previousMinute, 0);
+                isCayoTimeSwitched = false;
+            }
         }
     }
 
@@ -596,13 +1085,13 @@ public class gtamod : Script
     //************************   screen fades   *****************************************************************
     //***********************************************************************************************************
 
-    private void FadeScreenAndTeleport(bool toCayoPerico, bool toNY, bool isManualTeleport, bool toNYlsia = false)
+    private void HandleLocations(bool toCayoPerico, bool toNY, bool manuallyTravelled, bool toNYlsia = false)
     {
         isFading = true;
 
         // Fade out the screen
-        Function.Call(Hash.DO_SCREEN_FADE_OUT, 600);
-        Wait(100);
+        Function.Call(Hash.DO_SCREEN_FADE_OUT, 700);
+        Wait(500);
 
         // Determine the teleport location based on destination
         Vector3 teleportLocation = Vector3.Zero; // Initialize teleportLocation
@@ -610,87 +1099,47 @@ public class gtamod : Script
         if (toCayoPerico)
         {
             EnableCayoPerico(true);
+            Wait(500);
             teleportLocation = cayoTeleportLocation;
+            Wait(500);
         }
         else if (toNY)
         {
+            Wait(300);
             LoadNY.RequestNY(this);
+            Wait(300);
             teleportLocation = NY_TeleportLocation;
         }
         else if (toNYlsia)
         {
             EnableCayoPerico(false);
-            LoadNY.UnloadNY(this);
+            Wait(300);
             teleportLocation = NYlsiaTeleportLocation;
+            LoadNY.UnloadNY(this);
+
         }
         else
         {
-            // fallback, if nothing is met
-            EnableCayoPerico(false); // Ensure Cayo Perico is disabled when returning to LSIA
-            teleportLocation = lsiaTeleportLocation; // default/fallback
+            // disable cayo, from cayo
+            Wait(300);
+            teleportLocation = lsiaTeleportLocation;
+            EnableCayoPerico(false);
+
         }
 
         Wait(700);
-
+        Function.Call(Hash.DO_SCREEN_FADE_IN, 800);
         // Teleport the player
+        //Wait(200);
         Game.Player.Character.Position = teleportLocation;
-
-        // Fade in the screen
-        Function.Call(Hash.DO_SCREEN_FADE_IN, 600);
+        Wait(100);
 
         // If this was an automatic teleport, reset isFading after a short delay
-        if (!isManualTeleport)
+        if (!manuallyTravelled)
         {
-            Wait(700);
+            Wait(500);
         }
 
         isFading = false;
-    }
-
-
-
-    private void FadeScreenAndHandleCayoPerico(bool enableCayoPerico)
-    {
-        isFading = true;
-
-        // Fade out the screen
-        Function.Call(Hash.DO_SCREEN_FADE_OUT, 600);
-
-        Wait(1000);
-        EnableCayoPerico(enableCayoPerico);
-        // Fade in the screen
-        Function.Call(Hash.DO_SCREEN_FADE_IN, 600);
-        // Reset isFading after a short delay
-        Wait(700);
-
-        isFading = false;
-    }
-
-    private void FadeScreenAndHandleNY(bool enableNY)
-    {
-        isFading = true;
-
-        // Fade out the screen
-        Function.Call(Hash.DO_SCREEN_FADE_OUT, 600);
-
-        Wait(1000);
-        // Fade in the screen
-        Function.Call(Hash.DO_SCREEN_FADE_IN, 600);
-        Wait(700);
-
-        // Reset isFading after a short delay
-        Wait(700);
-
-        isFading = false;
-        if (enableNY)
-        {
-            LoadNY.RequestNY(this);
-            Game.Player.Character.Position = NY_TeleportLocation; // Teleport to NY
-        }
-        else
-        {
-            LoadNY.UnloadNY(this);
-            Game.Player.Character.Position = NYlsiaTeleportLocation; // Teleport to LS
-        }
     }
 }
