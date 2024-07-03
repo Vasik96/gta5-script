@@ -1120,7 +1120,7 @@ private void OnTick(object sender, EventArgs e)
         }
         else
         {
-            // disable cayo, from cayo
+            // Disable cayo, from cayo
             Wait(300);
             teleportLocation = lsiaTeleportLocation;
             EnableCayoPerico(false);
