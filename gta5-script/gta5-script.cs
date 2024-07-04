@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using static gtamod;
 using System.Diagnostics.Eventing.Reader;
 using System.Diagnostics;
+using System.Timers;
 
 
 public class gtamod : Script
@@ -34,7 +35,7 @@ public class gtamod : Script
 
     private bool isCayoPericoEnabled = false;
     private bool isFading = false; // Track if fading is in progress
-    public bool isCayoProximityEnabled = true; 
+    public bool isCayoProximityEnabled = true;
 
     public gtamod()
     {
@@ -55,11 +56,11 @@ public class gtamod : Script
         LoadCayoIPLs();
 
 
+        //InitializeAndStartBoatSpawnTimer();
+
+
         // Show startup message
         GTA.UI.Screen.ShowHelpText("Enabled more locations, enjoy.");
-
-
-
     }
 
 
@@ -789,60 +790,67 @@ public class gtamod : Script
         );
     }
 
+    private int interval = 10000; // 20 seconds in milliseconds
+    private int lastSpawnTime = 0;
 
 
-
-private void OnTick(object sender, EventArgs e)
+    private void OnTick(object sender, EventArgs e)
     {
 
-
-        // Draw markers continuously
-        DrawMarkers();
-        // Perform proximity check for Cayo Perico
-
-
-        if (isCayoProximityEnabled)
+        if (Game.GameTime - lastSpawnTime > interval)
         {
-            CayoPericoProximity();
+            SpawnDinghiesAtLocations();
+            lastSpawnTime = Game.GameTime;
+
+            // Draw markers continuously
+            DrawMarkers();
+            // Perform proximity check for Cayo Perico
+
+
+            if (isCayoProximityEnabled)
+            {
+                CayoPericoProximity();
+            }
+
+            // Check if player is near LSIA location
+            if (Game.Player.Character.Position.DistanceTo(lsiaBlipLocation) < 1.5f)
+            {
+                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to fly to ~y~Cayo Perico~s~");
+            }
+            // Check if player is near Cayo Perico location
+            else if (Game.Player.Character.Position.DistanceTo(cayoBlipLocation) < 1.5f)
+            {
+                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to return to Los Santos");
+            }
+            // Check if player is near North Yankton location
+            else if (Game.Player.Character.Position.DistanceTo(NYlsiaBlip) < 1.5f)
+            {
+                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to fly to ~b~North Yankton~s~");
+            }
+            // Check if player is at North Yankton and can return to LSIA
+            else if (Game.Player.Character.Position.DistanceTo(NY_BlipLocation) < 1.5f)
+            {
+                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to return to Los Santos");
+            }
+
+            // Update Cayo Perico blip visibility
+            cayoBlip.Alpha = isCayoPericoEnabled ? 255 : 0;
+
+            // Update North Yankton blip visibility
+            NorthYBlip.Alpha = LoadNY.isLoaded ? 255 : 0;
+
+            // Update LSIA blip visibility
+            lsiaBlip.Alpha = (!isCayoPericoEnabled && !LoadNY.isLoaded) ? 255 : 0;
+
+            // Update LSIA -> North Yankton blip visibility
+            NorthYlsiaBlip.Alpha = (LoadNY.isLoaded || isCayoPericoEnabled) ? 0 : 255; // || means "or"
+
+
+            //check if player is below Z: 30 each tick
+            NorthYanktonPositionCheck();
         }
-
-        // Check if player is near LSIA location
-        if (Game.Player.Character.Position.DistanceTo(lsiaBlipLocation) < 1.5f)
-        {
-            GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to fly to ~y~Cayo Perico~s~");
-        }
-        // Check if player is near Cayo Perico location
-        else if (Game.Player.Character.Position.DistanceTo(cayoBlipLocation) < 1.5f)
-        {
-            GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to return to Los Santos");
-        }
-        // Check if player is near North Yankton location
-        else if (Game.Player.Character.Position.DistanceTo(NYlsiaBlip) < 1.5f)
-        {
-            GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to fly to ~b~North Yankton~s~");
-        }
-        // Check if player is at North Yankton and can return to LSIA
-        else if (Game.Player.Character.Position.DistanceTo(NY_BlipLocation) < 1.5f)
-        {
-            GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to return to Los Santos");
-        }
-
-        // Update Cayo Perico blip visibility
-        cayoBlip.Alpha = isCayoPericoEnabled ? 255 : 0;
-
-        // Update North Yankton blip visibility
-        NorthYBlip.Alpha = LoadNY.isLoaded ? 255 : 0;
-
-        // Update LSIA blip visibility
-        lsiaBlip.Alpha = (!isCayoPericoEnabled && !LoadNY.isLoaded) ? 255 : 0;
-
-        // Update LSIA -> North Yankton blip visibility
-        NorthYlsiaBlip.Alpha = (LoadNY.isLoaded || isCayoPericoEnabled) ? 0 : 255; // || means "or"
-
-
-        //check if player is below Z: 30 each tick
-        NorthYanktonPositionCheck();
     }
+
 
     private Vector2 cayoCenter = new Vector2(4990f, -5100f);
 
@@ -855,12 +863,10 @@ private void OnTick(object sender, EventArgs e)
 
         if (distanceToCayo < 2000.0f && !isCayoPericoEnabled && !isFading)
         {
-            manuallyTravelling = true;
             EnableCayo(true);
         }
         else if (distanceToCayo >= 2000.0f && isCayoPericoEnabled && !isFading)
         {
-            manuallyTravelling = false;
             EnableCayo(false);
         }
     }
@@ -868,11 +874,11 @@ private void OnTick(object sender, EventArgs e)
 
     private void EnableCayo(bool enableCayoPerico)
     {
-        //Function.Call(Hash.DO_SCREEN_FADE_OUT, 700);
+        Function.Call(Hash.DO_SCREEN_FADE_OUT, 700);
         Wait(1000);
         EnableCayoPerico(enableCayoPerico);
         Wait(1000);
-        //Function.Call(Hash.DO_SCREEN_FADE_IN, 700);
+        Function.Call(Hash.DO_SCREEN_FADE_IN, 700);
     }
 
 
@@ -904,7 +910,6 @@ private void OnTick(object sender, EventArgs e)
             if (isCayoPericoEnabled)
             {
                 HandleLocations(false, false, true); // Teleport to Los Santos from Cayo Perico
-                manuallyTravelling = false;
                 CayoTime();
             }
         }
@@ -933,14 +938,72 @@ private void OnTick(object sender, EventArgs e)
     //***********************************************************************************************************
 
 
-    private void EnableCayoPerico(bool enable)
+
+
+
+
+    private List<Vector3> spawnPoints = new List<Vector3>
+{
+    //main dock
+    new Vector3(4940, -5146, 0),
+    new Vector3(5102, -5174, 0),
+    new Vector3(4885, -5164, 0),
+    //north dock
+    new Vector3(5094, -4651, 0),
+    new Vector3(5129, -4638, 0),
+    new Vector3(5157, -4662, 0),
+
+};
+
+    //private System.Timers.Timer spawnTimer;
+
+    private void SpawnDinghiesAtLocations()
+    {
+        if (isCayoPericoEnabled) // Assuming you have a flag for Cayo Perico
+        {
+            foreach (var spawnPoint in spawnPoints)
+            {
+                SpawnDinghyAtLocation(spawnPoint);
+            }
+        }
+    }
+    private void SpawnDinghyAtLocation(Vector3 spawnLocation)
+    {
+        float radius = 9.0f;
+        Vehicle[] nearbyVehicles = World.GetNearbyVehicles(spawnLocation, radius);
+
+        if (nearbyVehicles.Length == 0)
+        {
+            Model dinghyModel = new Model("dinghy3");
+
+            if (dinghyModel.IsValid && dinghyModel.IsInCdImage)
+            {
+                dinghyModel.Request();
+
+                while (!dinghyModel.IsLoaded)
+                {
+                    Script.Wait(0);
+                }
+
+                Vehicle dinghy = World.CreateVehicle(dinghyModel, spawnLocation);
+                if (dinghy != null)
+                {
+                    dinghy.PlaceOnGround();
+                }
+                dinghyModel.MarkAsNoLongerNeeded(); // Ensure model is marked as no longer needed
+            }
+        }
+    }
+
+        private void EnableCayoPerico(bool enable)
     {
         if (enable)
         {
-            
+
             // Load Cayo Perico Island
+            Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", true);
             //Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", true, false); // Load Cayo Perico Island, islandhopper func.
-            Function.Call((Hash)0x7E3F55ED251B76D3, 1); //1 - heistisland, 0 - default
+            //Function.Call((Hash)0x7E3F55ED251B76D3, 1); //1 - heistisland, 0 - default
 
             // Disable Yankton zone before loading Cayo Perico
             int yanktonZoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "PrLog");
@@ -963,28 +1026,17 @@ private void OnTick(object sender, EventArgs e)
             Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Zones", 1, 1);
             //Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "se_dlc_hei4_island_beach_party_music_new_01_left", true);
             //Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "se_dlc_hei4_island_beach_party_music_new_02_right", true);
-            /*int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "IsHeistZone");
-            Function.Call(Hash.SET_ZONE_ENABLED, zoneId, true);*/
+
+            int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "IsHeistZone");
+            Function.Call(Hash.SET_ZONE_ENABLED, zoneId, true);
+
             Function.Call((Hash)0xF8DEE0A5600CBB93, true);  // Reveal the grayed/unexplored map parts in story mode
 
             // Enable scenarios and NPC spawning
             Function.Call(Hash.SET_SCENARIO_GROUP_ENABLED, "Heist_Island_Peds", true);
             Function.Call((Hash)0x53797676AD34A9AA, true); // unknown
             Function.Call((Hash)0xF74B1FFA4A15FBEA, 1); // Enable path nodes so routing works on the island
-            LoadCayoIPLs(); //load
 
-
-            //interior
-            Function.Call(Hash.REQUEST_IPL, "h4_mph4_airstrip_interior_0_airstrip_hanger");
-            while (!Function.Call<bool>(Hash.IS_IPL_ACTIVE, "h4_mph4_airstrip_interior_0_airstrip_hanger"))
-            {
-                Script.Wait(0);
-                GTA.UI.Screen.ShowHelpText("a");
-            }
-            Function.Call(Hash.DISABLE_INTERIOR, 1104, false);
-            Function.Call(Hash.ACTIVATE_INTERIOR_ENTITY_SET, 1104, "island_hanger_padlock_props"); //interior ID: 1104, 739th interior
-            Function.Call(Hash.PIN_INTERIOR_IN_MEMORY, 1104);
-            Function.Call(Hash.REFRESH_INTERIOR, 1104);
             
 
 
@@ -1000,6 +1052,11 @@ private void OnTick(object sender, EventArgs e)
                 Function.Call(Hash.SET_RADAR_AS_INTERIOR_THIS_FRAME, "h4_fake_islandx", 4700.0f, -5145.0f, 0f, 0);
             }
 
+            Script.Wait(500);
+
+            Function.Call(Hash.REMOVE_IPL, "h4_islandairstrip_doorsclosed");
+            Function.Call(Hash.REQUEST_IPL, "h4_islandairstrip_doorsopen");
+
             isCayoPericoEnabled = true;
             Wait(2);
             CayoTime();
@@ -1008,7 +1065,8 @@ private void OnTick(object sender, EventArgs e)
         {
             //Function.Call((Hash)
             //, "HeistIsland", false); // Disable the Cayo Perico Island, island hopper func.
-            Function.Call((Hash)0x7E3F55ED251B76D3, 0); //1 - heistisland, 0 - default, LOAD_GLOBAL_WATER_TYPE func.
+            //Function.Call((Hash)0x7E3F55ED251B76D3, 0); //1 - heistisland, 0 - default, LOAD_GLOBAL_WATER_TYPE func.
+            Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", false);
 
             // Disable scenarios and NPC spawning
             Function.Call(Hash.SET_SCENARIO_GROUP_ENABLED, "Heist_Island_Peds", false); 
@@ -1041,6 +1099,7 @@ private void OnTick(object sender, EventArgs e)
             Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Disabled_Zones", 1, 0);
             //Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "se_dlc_hei4_island_beach_party_music_new_01_left", false);
             //Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "se_dlc_hei4_island_beach_party_music_new_02_right", false);
+            Function.Call(Hash.REMOVE_IPL, "h4_islandairstrip_doorsopen");
 
             isCayoPericoEnabled = false;
             Wait(2);
@@ -1054,30 +1113,26 @@ private void OnTick(object sender, EventArgs e)
     private bool isCayoTimeSwitched = false;
     private int previousHour = 0;
     private int previousMinute = 0;
-    bool manuallyTravelling = false;
+
 
     private void CayoTime()
     {
 
-        if (manuallyTravelling == false)
+
+        if (isCayoPericoEnabled && !isCayoTimeSwitched)
         {
-
-
-            if (isCayoPericoEnabled && !isCayoTimeSwitched)
-            {
-                previousHour = Function.Call<int>(Hash.GET_CLOCK_HOURS);
-                previousMinute = Function.Call<int>(Hash.GET_CLOCK_MINUTES);
-                int newHour = (previousHour + 12) % 24;
-                Function.Call(Hash.SET_CLOCK_TIME, newHour, previousMinute, 0);
-                isCayoTimeSwitched = true;
-            }
-            else if (!isCayoPericoEnabled && isCayoTimeSwitched)
-            {
-                int currentHour = Function.Call<int>(Hash.GET_CLOCK_HOURS);
-                int revertHour = (currentHour - 12 + 24) % 24; // Ensure we wrap around correctly
-                Function.Call(Hash.SET_CLOCK_TIME, revertHour, previousMinute, 0);
-                isCayoTimeSwitched = false;
-            }
+            previousHour = Function.Call<int>(Hash.GET_CLOCK_HOURS);
+            previousMinute = Function.Call<int>(Hash.GET_CLOCK_MINUTES);
+            int newHour = (previousHour + 12) % 24;
+            Function.Call(Hash.SET_CLOCK_TIME, newHour, previousMinute, 0);
+            isCayoTimeSwitched = true;
+        }
+        else if (!isCayoPericoEnabled && isCayoTimeSwitched)
+        {
+            int currentHour = Function.Call<int>(Hash.GET_CLOCK_HOURS);
+            int revertHour = (currentHour - 12 + 24) % 24; // Ensure we wrap around correctly
+            Function.Call(Hash.SET_CLOCK_TIME, revertHour, previousMinute, 0);
+            isCayoTimeSwitched = false;
         }
     }
 
