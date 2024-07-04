@@ -790,17 +790,19 @@ public class gtamod : Script
         );
     }
 
-    private int interval = 10000; // 20 seconds in milliseconds
+    private int interval = 180000; // time between spawning boats, in ms, for example 10000 = 10 seconds
     private int lastSpawnTime = 0;
 
 
     private void OnTick(object sender, EventArgs e)
     {
+        { 
 
         if (Game.GameTime - lastSpawnTime > interval)
         {
             SpawnDinghiesAtLocations();
             lastSpawnTime = Game.GameTime;
+        }
 
             // Draw markers continuously
             DrawMarkers();
