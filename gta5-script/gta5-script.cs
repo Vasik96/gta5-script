@@ -20,6 +20,12 @@ public class gtamod : Script
     private Blip cayoBlip;
     private Blip NorthYlsiaBlip;
     private Blip NorthYBlip;
+
+    //private Blip cayoFixBlip;
+    //private Vector3 cayoFixBlipLocation = new Vector3(5943.0f, -6272.0f, 0f);
+
+
+
     //cayo stuff
     private Vector3 lsiaBlipLocation = new Vector3(-1167f, -2736f, 18.5f); // blip and marker at LSIA (to travel to cayo)
     private Vector3 lsiaTeleportLocation = new Vector3(-1173f, -2750f, 14f); // tp location LSIA (when going from cayo to LSIA using marker)
@@ -54,6 +60,8 @@ public class gtamod : Script
         // Create blips
         CreateBlips();
         LoadCayoIPLs();
+
+        Function.Call((Hash)0xF8DEE0A5600CBB93, true); //reveal unexplored parts
 
 
         //InitializeAndStartBoatSpawnTimer();
@@ -900,6 +908,8 @@ public class gtamod : Script
             "prologue04_cover",
             "des_protree_end",
             "des_protree_start",
+            "prologue_DistantLights",
+            "prologue_LODLights",
             "prologue05",
             "prologue05b",
             "prologue06",
@@ -922,6 +932,7 @@ public class gtamod : Script
                     //enable zone - THIS DOES NOT CRASH FINALLY
                     int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "PrLog");
                     Function.Call(Hash.SET_ZONE_ENABLED, zoneId, true);
+
                     Function.Call(Hash.SET_MAPDATACULLBOX_ENABLED, "prologue", true);
                     Function.Call(Hash.SET_MAPDATACULLBOX_ENABLED, "Prologue_Main", true);
 
@@ -933,6 +944,15 @@ public class gtamod : Script
                     Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 3186.534f, -4832.798f, 109.8148f, 3202.187f, -4833.993f, 114.815f, 16, false, true, true);
                     //1 side road had to be added manually
                     Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 5493.3f, -5344.76f, 81.8f, 5483.187f, -5137.3f, 75.1f, 4, false, true, true);
+
+
+                    //ambient stuff
+                    Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE, "ZONE_LIST_YANKTON", true, true);
+                    Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZ_YANKTON_CEMETARY", true, true);
+                    Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "az_yankton_cash_depot", true, true); 
+                    Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "az_big_yankton", true, true);
+                    Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "az_yankton_farm", true, true);
+
                 }
 
 
@@ -979,6 +999,8 @@ public class gtamod : Script
             "prologue04_cover",
             "des_protree_end",
             "des_protree_start",
+            "prologue_DistantLights",
+            "prologue_LODLights",
             "prologue05",
             "prologue05b",
             "prologue06",
@@ -1008,6 +1030,15 @@ public class gtamod : Script
                     Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 3186.534f, -4832.798f, 109.8148f, 3202.187f, -4833.993f, 114.815f, 16, false, false, false);
                     //1 side road had to be added manually
                     Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 5493.3f, -5344.76f, 81.8f, 5483.187f, -5137.3f, 75.1f, 4, false, false, false);
+
+                    Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE, "ZONE_LIST_YANKTON", false, true);
+                    Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZ_YANKTON_CEMETARY", false, true);
+                    Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "az_yankton_cash_depot", false, true);
+
+
+                    
+
+
                 }
 
                 mod.ClearOverrideWeather();
@@ -1067,6 +1098,19 @@ public class gtamod : Script
 
     private void CreateBlips()
     {
+        /*cayoFixBlip = World.CreateBlip(cayoFixBlipLocation);
+        Function.Call(Hash.SET_BLIP_DISPLAY, cayoFixBlip, 4);
+        Function.Call(Hash.SET_BLIP_SCALE, cayoFixBlip, 0.0);
+        Function.Call(Hash.SET_BLIP_COLOUR, cayoFixBlip, 0);
+        Function.Call(Hash.SET_BLIP_AS_SHORT_RANGE, cayoFixBlip, true);
+        Function.Call(Hash.BEGIN_TEXT_COMMAND_SET_BLIP_NAME, "STRING");
+        Function.Call(Hash.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME, " ");
+        Function.Call(Hash.END_TEXT_COMMAND_SET_BLIP_NAME, cayoFixBlip);
+
+        cayoFixBlip.Alpha = 0;*/
+
+
+
         // Create blip at original LSIA location (plane icon on the map)
         lsiaBlip = World.CreateBlip(lsiaBlipLocation);
         lsiaBlip.Sprite = BlipSprite.CayoPericoSeries;
@@ -1144,9 +1188,21 @@ public class gtamod : Script
 
     private void OnTick(object sender, EventArgs e)
     {
-        { 
+        if (!LoadNY.isLoaded)
+        {
+            Function.Call(Hash.SET_RADAR_AS_EXTERIOR_THIS_FRAME);
+            Function.Call(Hash.SET_RADAR_AS_INTERIOR_THIS_FRAME,
+                Game.GenerateHash("h4_fake_islandx"),
+                4700.0f, -5145.0f, 0.0f,
+                0, 0);
+        }
 
-        if (Game.GameTime - lastSpawnTime > interval)
+
+        {
+
+
+
+            if (Game.GameTime - lastSpawnTime > interval)
         {
             SpawnDinghiesAtLocations();
             lastSpawnTime = Game.GameTime;
@@ -1198,6 +1254,7 @@ public class gtamod : Script
 
             //check if player is below Z: 30 each tick
             NorthYanktonPositionCheck();
+
         }
     }
 
@@ -1352,13 +1409,21 @@ public class gtamod : Script
 
             // Load Cayo Perico Island
             Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", true);
-            //Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", true, false); // Load Cayo Perico Island, islandhopper func.
-            //Function.Call((Hash)0x7E3F55ED251B76D3, 1); //1 - heistisland, 0 - default
+
+
+            
+
 
             // Disable Yankton zone before loading Cayo Perico
             int yanktonZoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "PrLog");
             Function.Call(Hash.SET_ZONE_ENABLED, yanktonZoneId, false);
-            
+
+
+            int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "IsHeistZone");
+            Function.Call(Hash.SET_ZONE_ENABLED, zoneId, true);
+            Function.Call(Hash.SET_MAPDATACULLBOX_ENABLED, "HeistIsland", true);
+
+
             //disable arena stuff
             Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "SE_DLC_AW_ARENA_CONSTRUCTION_01", false);
             Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "SE_DLC_AW_ARENA_CROWD_BACKGROUND_MAIN", false);
@@ -1370,15 +1435,23 @@ public class gtamod : Script
             //int cayoZone = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, cayoZoneName);
             //Function.Call(Hash.SET_ZONE_ENABLED, cayoZoneName, true);
 
-            // Enable minimap and reveal unexplored parts of the map
+
             Function.Call((Hash)0x5E1460624D194A38, true); // Load the minimap and map
-            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Disabled_Zones", 0, 1);
-            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Zones", 1, 1);
+            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Disabled_Zones", false, true);
+            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Zones", true, true);
+            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "az_dlc_h4_ih_island_big_zone", true, true);
+
             //Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "se_dlc_hei4_island_beach_party_music_new_01_left", true);
             //Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "se_dlc_hei4_island_beach_party_music_new_02_right", true);
 
-            int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "IsHeistZone");
-            Function.Call(Hash.SET_ZONE_ENABLED, zoneId, true);
+
+            Script.Wait(1000);
+            /*int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "IsHeist");
+            Function.Call(Hash.SET_ZONE_ENABLED, zoneId, true);*/
+
+
+            
+
 
             Function.Call((Hash)0xF8DEE0A5600CBB93, true);  // Reveal the grayed/unexplored map parts in story mode
 
@@ -1396,16 +1469,21 @@ public class gtamod : Script
             //Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 6371.534f, -5965.798f, 200f, 3421.187f, -4374.993f, 0f, 384, false, true, true);
 
             // Radar configuration
-            if (Function.Call<int>(Hash.GET_INTERIOR_FROM_ENTITY, Game.Player.Character) == 0)
+            /*if (Function.Call<int>(Hash.GET_INTERIOR_FROM_ENTITY, Game.Player.Character) == 0)
             {
                 Function.Call(Hash.SET_RADAR_AS_EXTERIOR_THIS_FRAME);
                 Function.Call(Hash.SET_RADAR_AS_INTERIOR_THIS_FRAME, "h4_fake_islandx", 4700.0f, -5145.0f, 0f, 0);
-            }
+            }*/
 
             Script.Wait(500);
 
             Function.Call(Hash.REMOVE_IPL, "h4_islandairstrip_doorsclosed");
             Function.Call(Hash.REQUEST_IPL, "h4_islandairstrip_doorsopen");
+            //car spawns
+
+            Function.Call(Hash.REQUEST_IPL, "h4_islandx_barrack_props");
+            Function.Call(Hash.REQUEST_IPL, "h4_islandxtower_lod");
+            Function.Call(Hash.REQUEST_IPL, "h4_islandxtower");
 
             isCayoPericoEnabled = true;
             Wait(2);
@@ -1413,9 +1491,6 @@ public class gtamod : Script
         }
         else
         {
-            //Function.Call((Hash)
-            //, "HeistIsland", false); // Disable the Cayo Perico Island, island hopper func.
-            //Function.Call((Hash)0x7E3F55ED251B76D3, 0); //1 - heistisland, 0 - default, LOAD_GLOBAL_WATER_TYPE func.
             Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", false);
 
             // Disable scenarios and NPC spawning
@@ -1433,20 +1508,16 @@ public class gtamod : Script
             // Disable the roads in the area
             //Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 6371.534f, -5965.798f, 200f, 3421.187f, -4374.993f, 0f, 384, false, false, false);
 
+            Script.Wait(1000);
+
+            int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "IsHeist");
+            Function.Call(Hash.SET_ZONE_ENABLED, zoneId, false);
+
             Function.Call((Hash)0xF74B1FFA4A15FBEA, 0); // Disable path nodes so routing works on mainland
 
-            //string cayoZoneName = Function.Call<string>(Hash.GET_NAME_OF_ZONE, 4840.571f, -5174.425f, 2.0f); // Example coordinates within Cayo Perico
-            //int cayoZone = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, cayoZoneName);
-            //Function.Call(Hash.SET_ZONE_ENABLED, cayoZone, false);
-
-            // Audio
-            //Function.Call(Hash.SET_AUDIO_FLAG, "PlayerOnDLCHeist4Island", 0);
-
-            // Disable Cayo Perico zone
-            /*int zoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "IsHeistZone");
-            Function.Call(Hash.SET_ZONE_ENABLED, zoneId, false);*/
-            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Zones", 0, 0);
-            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Disabled_Zones", 1, 0);
+            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Zones", false, true);
+            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Disabled_Zones", true, true);
+            Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "az_dlc_h4_ih_island_big_zone", false, true);
             //Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "se_dlc_hei4_island_beach_party_music_new_01_left", false);
             //Function.Call(Hash.SET_STATIC_EMITTER_ENABLED, "se_dlc_hei4_island_beach_party_music_new_02_right", false);
             Function.Call(Hash.REMOVE_IPL, "h4_islandairstrip_doorsopen");
