@@ -6,12 +6,7 @@ using System;
 using System.Windows.Forms;
 using System.Drawing;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using static gtamod;
-using System.Diagnostics.Eventing.Reader;
-using System.Diagnostics;
-using System.Timers;
 
 
 public class gtamod : Script
@@ -42,6 +37,12 @@ public class gtamod : Script
     private bool isCayoPericoEnabled = false;
     private bool isFading = false; // Track if fading is in progress
     public bool isCayoProximityEnabled = true;
+    public bool wasPlayerDead = false;
+
+
+    private Vehicle yanktonTrain;
+    private bool isTrainSpawned = false;
+
 
     public gtamod()
     {
@@ -51,7 +52,7 @@ public class gtamod : Script
         KeyDown += OnKeyDown;
 
         // Enable MP maps on startup
-        EnableMpMaps();
+        //EnableMpMaps();
 
         //Load Aircraft Carrier after MP maps
         AdditionalIPLs.RequestIpls();
@@ -72,6 +73,241 @@ public class gtamod : Script
     }
 
 
+    private int interval = 180000; // time between spawning boats, in ms, for example 10000 = 10 seconds
+    private int lastSpawnTime = 0;
+
+
+
+    private void OnTick(object sender, EventArgs e)
+    {
+
+
+        if (!LoadNY.isLoaded)
+        {
+            Function.Call(Hash.SET_RADAR_AS_EXTERIOR_THIS_FRAME);
+            Function.Call(Hash.SET_RADAR_AS_INTERIOR_THIS_FRAME,
+                StringHash.AtStringHash("h4_fake_islandx"),
+                4700.0f, -5150.0f, 0.0f,
+                0, 0);
+        }
+
+
+
+        {
+
+
+
+            if (Game.GameTime - lastSpawnTime > interval)
+            {
+                SpawnDinghiesAtLocations();
+                lastSpawnTime = Game.GameTime;
+            }
+
+            // Draw markers continuously
+            DrawMarkers();
+            // Perform proximity check for Cayo Perico
+
+
+            if (isCayoProximityEnabled)
+            {
+                CayoPericoProximity();
+            }
+
+            // Check if player is near LSIA location
+            if (Game.Player.Character.Position.DistanceTo(lsiaBlipLocation) < 1.5f)
+            {
+                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to fly to ~y~Cayo Perico~s~");
+            }
+            // Check if player is near Cayo Perico location
+            else if (Game.Player.Character.Position.DistanceTo(cayoBlipLocation) < 1.5f)
+            {
+                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to return to Los Santos");
+            }
+            // Check if player is near North Yankton location
+            else if (Game.Player.Character.Position.DistanceTo(NYlsiaBlip) < 1.5f)
+            {
+                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to fly to ~b~North Yankton~s~");
+            }
+            // Check if player is at North Yankton and can return to LSIA
+            else if (Game.Player.Character.Position.DistanceTo(NY_BlipLocation) < 1.5f)
+            {
+                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to return to Los Santos");
+            }
+
+            // Update Cayo Perico blip visibility
+            cayoBlip.Alpha = isCayoPericoEnabled ? 255 : 0;
+
+            // Update North Yankton blip visibility
+            NorthYBlip.Alpha = LoadNY.isLoaded ? 255 : 0;
+
+            // Update LSIA blip visibility
+            lsiaBlip.Alpha = (!isCayoPericoEnabled && !LoadNY.isLoaded) ? 255 : 0;
+
+            // Update LSIA -> North Yankton blip visibility
+            NorthYlsiaBlip.Alpha = (LoadNY.isLoaded || isCayoPericoEnabled) ? 0 : 255;
+
+
+            //check if player is below Z: 30 each tick
+            NorthYanktonPositionCheck();
+
+
+            Ped playerPed = Game.Player.Character;
+
+            bool isDeadOrDying = Function.Call<bool>(Hash.IS_PED_DEAD_OR_DYING, playerPed, false);
+
+            if (isDeadOrDying)
+            {
+                wasPlayerDead = true; // Mark player as dead
+            }
+            else if (wasPlayerDead)
+            {
+                // If the player was previously dead and is no longer dead or dying
+                wasPlayerDead = false; // Player has been resurrected
+
+                // Call NYOnPlayerDied after resurrection
+                NYOnPlayerDied();
+            }
+
+            NorthYanktonLocationCheck();
+        }
+    }
+
+
+
+
+
+
+    //***********************************************************************************************************
+    //************************   markers destinations   *********************************************************
+    //***********************************************************************************************************
+
+    //! this pattern is followed: bool toCayoPerico, bool toNY, bool isManualTeleport, bool toNYlsia = false
+    //bool can be either true or false
+
+
+    public bool isF5Pressed = false;
+    private void OnKeyDown(object sender, KeyEventArgs e)
+    {
+        // Check if player is at LSIA and pressed "E" to teleport to Cayo Perico
+        if (e.KeyCode == Keys.E && Game.Player.Character.Position.DistanceTo(lsiaBlipLocation) < 1.5f)
+        {
+            if (!isCayoPericoEnabled)
+            {
+                HandleLocations(true, false, true); // Teleport to Cayo Perico
+            }
+        }
+        // Check if player is at Cayo Perico and pressed "E" to teleport back to Los Santos
+        else if (e.KeyCode == Keys.E && Game.Player.Character.Position.DistanceTo(cayoBlipLocation) < 1.5f)
+        {
+            if (isCayoPericoEnabled)
+            {
+                HandleLocations(false, false, true); // Teleport to Los Santos from Cayo Perico
+                CayoTime();
+            }
+        }
+        // Check if player is at LSIA for North Yankton and pressed "E" to teleport to North Yankton
+        else if (e.KeyCode == Keys.E && Game.Player.Character.Position.DistanceTo(NYlsiaBlip) < 1.5f)
+        {
+            HandleLocations(false, true, true); // Teleport to North Yankton
+        }
+        // Check if player is at North Yankton and pressed "E" to teleport to LSIA
+        else if (e.KeyCode == Keys.E && Game.Player.Character.Position.DistanceTo(NY_BlipLocation) < 1.5f)
+        {
+            HandleLocations(false, false, true, true); // Teleport to LSIA from North Yankton
+        }
+        else if (e.KeyCode == Keys.F5)
+        {
+            Function.Call(Hash.PREPARE_MUSIC_EVENT, "MIC1_TREVOR_PLANE");
+            Function.Call(Hash.TRIGGER_MUSIC_EVENT, "MIC1_TREVOR_PLANE");
+            //Function.Call(Hash.NETWORK_SESSION_HOST_SINGLE_PLAYER, 2);
+        }
+        else if (e.KeyCode == Keys.F6) //EnableMpMaps();
+        {
+            Function.Call(Hash.CANCEL_MUSIC_EVENT, "MIC1_TREVOR_PLANE");
+        }
+
+        else if (e.KeyCode == Keys.K)
+        {
+            EnableMpMaps();
+        }
+
+        else if (e.KeyCode == Keys.F7)
+        {
+            SpawnMissionTrain();
+        }
+
+        else if (e.KeyCode == Keys.F9)
+        {
+            DeleteMissionTrain();
+        }
+    }
+
+
+
+    //NOTE: it works finally
+    private void SpawnMissionTrain()
+    {
+        // List of train models to request
+        var trainModels = new string[]
+        {
+        "freight", "metrotrain", "freightcont1", "freightcar",
+        "freightcar2", "freightcont2", "tankercar", "freightgrain"
+        };
+
+        // Load the models synchronously
+        foreach (var modelName in trainModels)
+        {
+            var modelHash = Function.Call<Hash>(Hash.GET_HASH_KEY, modelName);
+            Function.Call(Hash.REQUEST_MODEL, modelHash);
+
+            // Wait until the model is loaded (non-blocking)
+            while (!Function.Call<bool>(Hash.HAS_MODEL_LOADED, modelHash))
+            {
+                Script.Wait(500); // Non-blocking wait for 500ms
+            }
+        }
+
+        // Choose a variation ID for the train (0-26 as per the range)
+        int variationId = new Random().Next(0, 27);  // Randomly generate a variation ID between 0 and 26
+        Vector3 spawnPosition = Game.Player.Character.Position + Game.Player.Character.ForwardVector * 100f; // Spawn in front of the player
+        bool direction = true; // Set train direction, true for clockwise, false for counter-clockwise
+
+        // Call the CREATE_MISSION_TRAIN native to spawn the train
+        Vehicle yanktonTrain = Function.Call<Vehicle>(Hash.CREATE_MISSION_TRAIN, variationId, spawnPosition.X, spawnPosition.Y, spawnPosition.Z, direction);
+
+        // Check if the train was successfully spawned
+        if (yanktonTrain == null || !yanktonTrain.Exists())
+        {
+            GTA.UI.Screen.ShowHelpText("Failed to spawn mission train.");
+            return;
+        }
+
+        // Set train properties
+        yanktonTrain.IsPersistent = true;
+        yanktonTrain.IsEngineRunning = true;
+
+        // Additional train settings can be done here
+        GTA.UI.Screen.ShowHelpText("Mission train spawned.");
+    }
+
+
+
+
+
+
+
+    private void DeleteMissionTrain()
+    {
+        //... 
+    }
+
+
+
+
+
+    /// *****************************************************************************
+    /// /////////////////////////////////////////////////////////////////////////////
+    /// *****************************************************************************
     private void LoadCayoIPLs()
     {
         string[] iplNames = new string[]
@@ -748,8 +984,22 @@ public class gtamod : Script
 
     private void EnableMpMaps()
     {
-        Function.Call((Hash)0x888C3502DBBEEF5, true); // Load MP maps
+        try
+        {
+            Function.Call((Hash)0x888C3502DBBEEF5, true); // Attempt to load MP maps
+        }
+        catch (AccessViolationException)
+        {
+            // If a protected memory error occurs, show a help text warning
+            GTA.UI.Screen.ShowHelpText("Failed to load MP maps due to protected memory access error. Try increasing heap size or adjusting mod settings.");
+        }
+        catch (Exception ex)
+        {
+            // Catch any other exceptions for debugging purposes
+            GTA.UI.Screen.ShowHelpText("An error occurred: " + ex.Message);
+        }
     }
+
 
 
     //***********************************************************************************************************
@@ -856,7 +1106,7 @@ public class gtamod : Script
     private void SetRandomWeatherForNY()
     {
 
-            Function.Call(Hash.SET_OVERRIDE_WEATHER, "SNOWLIGHT");
+        Function.Call(Hash.SET_OVERRIDE_WEATHER, "SNOWLIGHT");
     }
 
 
@@ -925,7 +1175,7 @@ public class gtamod : Script
                 {
                     Function.Call(Hash.REQUEST_IPL, iplName);
 
-                    Function.Call((Hash)0x9133955F1A2DA957, true); //NY map
+
                     Function.Call(Hash.SET_ALLOW_STREAM_PROLOGUE_NODES, true); //nodes for the location - confirmed it works, hash: 0x228E5C6AD4D74BFD
 
 
@@ -935,6 +1185,8 @@ public class gtamod : Script
 
                     Function.Call(Hash.SET_MAPDATACULLBOX_ENABLED, "prologue", true);
                     Function.Call(Hash.SET_MAPDATACULLBOX_ENABLED, "Prologue_Main", true);
+                    Function.Call((Hash)0x228E5C6AD4D74BFD, true); // _SET_ALL_PATHS_CACHE_BOUNDINGSTRUCT
+
 
                     //enable paths - crash, NOTE: probably need to enable the north yankton zone in order to spawn snow vehicles, NOTE: ny zone is already enabled
                     //roads
@@ -946,10 +1198,13 @@ public class gtamod : Script
                     Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 5493.3f, -5344.76f, 81.8f, 5483.187f, -5137.3f, 75.1f, 4, false, true, true);
 
 
+                    Function.Call(Hash.SET_MINIMAP_IN_PROLOGUE, true); //NY map, 0x9133955F1A2DA957
+
+
                     //ambient stuff
                     Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE, "ZONE_LIST_YANKTON", true, true);
                     Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZ_YANKTON_CEMETARY", true, true);
-                    Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "az_yankton_cash_depot", true, true); 
+                    Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "az_yankton_cash_depot", true, true);
                     Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "az_big_yankton", true, true);
                     Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "az_yankton_farm", true, true);
 
@@ -964,7 +1219,7 @@ public class gtamod : Script
 
 
 
-        public static void UnloadNY(gtamod mod)
+        public static void UnloadNY(gtamod mod, bool isDead)
         {
             if (isLoaded)
             {
@@ -1024,6 +1279,9 @@ public class gtamod : Script
 
                     Function.Call(Hash.SET_MAPDATACULLBOX_ENABLED, "prologue", false);
                     Function.Call(Hash.SET_MAPDATACULLBOX_ENABLED, "Prologue_Main", false); //idk what these do, but they are related to NY, so ill keep them here
+                    Function.Call((Hash)0x228E5C6AD4D74BFD, false);
+
+
                     Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 5655.24f, -5142.23f, 61.78925f, 3679.327f, -4973.879f, 125.0828f, 192, false, false, false);
                     Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 3691.211f, -4941.24f, 94.59368f, 3511.115f, -4869.191f, 126.7621f, 16, false, false, false);
                     Function.Call(Hash.SET_ROADS_IN_ANGLED_AREA, 3510.004f, -4865.81f, 94.69557f, 3204.424f, -4833.817f, 126.8152f, 16, false, false, false);
@@ -1036,46 +1294,74 @@ public class gtamod : Script
                     Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "az_yankton_cash_depot", false, true);
 
 
-                    
+
 
 
                 }
 
                 mod.ClearOverrideWeather();
                 mod.LoadCayoIPLs();
-                isLoaded = false;
-                mod.isCayoProximityEnabled = true; // Re-enable Cayo Perico proximity check when NY is unloaded
+
+                if (isDead)
+                {
+                    // Wait until the player is resurrected
+                    while (Game.Player.Character.IsDead)
+                    {
+                        Script.Wait(1000); // Wait for 1 second intervals
+                    }
+
+                    // Once player is alive, update flags
+                    isLoaded = false;
+                    mod.isCayoProximityEnabled = true;
+                }
+
+                else
+                {
+                    isLoaded = false;
+                    mod.isCayoProximityEnabled = true; // Re-enable Cayo Perico proximity check when NY is unloaded
+                }
             }
         }
     }
 
 
-    // if player falls bellow Z: 30, tp him back to the NY_teleportlocation
+    // if player falls bellow Z: 35, tp him back to the NY_teleportlocation
     private void NorthYanktonPositionCheck()
     {
-        if (LoadNY.isLoaded && Game.Player.Character.Position.Z < 30f)
+        if (LoadNY.isLoaded && Game.Player.Character.Position.Z < 35f)
         {
             Vector3 closestNode = GetClosestRoadNode(Game.Player.Character.Position);
 
             // Check if a valid road node was found
             if (closestNode != Vector3.Zero)
             {
+
+                
+                closestNode.Z += 1.5f;
+
+
                 // Check if player is in a vehicle
                 if (Game.Player.Character.IsInVehicle())
                 {
                     // Get the vehicle the player is in
                     Vehicle playerVehicle = Game.Player.Character.CurrentVehicle;
-                    // Teleport the vehicle and the player inside it
+
+                    // Teleport the vehicle and the player inside it with yaw and heading set to 0
                     playerVehicle.Position = closestNode;
+                    playerVehicle.Heading = 0f;   // Set heading to 0
+                    playerVehicle.Rotation = new Vector3(0f, 0f, 0f); // Set rotation to 0
                 }
                 else
                 {
-                    // Teleport the player if not in a vehicle
+                    // Teleport the player if not in a vehicle with yaw and heading set to 0
                     Game.Player.Character.Position = closestNode;
+                    Game.Player.Character.Heading = 0f;   // Set heading to 0
+                    Game.Player.Character.Rotation = new Vector3(0f, 0f, 0f); // Set rotation to 0
                 }
             }
         }
     }
+
 
     private Vector3 GetClosestRoadNode(Vector3 position)
     {
@@ -1145,7 +1431,7 @@ public class gtamod : Script
 
         // Draw LSIA marker at the original location
         World.DrawMarker(
-            MarkerType.VerticalCylinder,
+            MarkerType.Cylinder,
             lsiaBlipLocation,
             Vector3.Zero,
             new Vector3(0f, 0f, -1f), // Offset slightly below the marker point
@@ -1155,7 +1441,7 @@ public class gtamod : Script
 
         // Draw Cayo Perico marker at the original location
         World.DrawMarker(
-            MarkerType.VerticalCylinder,
+            MarkerType.Cylinder,
             cayoBlipLocation,
             Vector3.Zero,
             new Vector3(0f, 0f, -1f), // Offset slightly below the marker point
@@ -1164,7 +1450,7 @@ public class gtamod : Script
         );
         //LSIA -> north yankton, marker
         World.DrawMarker(
-            MarkerType.VerticalCylinder,
+            MarkerType.Cylinder,
             NYlsiaBlip,
             Vector3.Zero,
             new Vector3(0f, 0f, -1f), // Offset slightly below the marker point
@@ -1173,7 +1459,7 @@ public class gtamod : Script
         );
         //North yankton marker
         World.DrawMarker(
-            MarkerType.VerticalCylinder,
+            MarkerType.Cylinder,
             NY_BlipLocation,
             Vector3.Zero,
             new Vector3(0f, 0f, -1f), // Offset slightly below the marker point
@@ -1182,81 +1468,42 @@ public class gtamod : Script
         );
     }
 
-    private int interval = 180000; // time between spawning boats, in ms, for example 10000 = 10 seconds
-    private int lastSpawnTime = 0;
+    
 
 
-    private void OnTick(object sender, EventArgs e)
+    private void NYOnPlayerDied()
     {
-        if (!LoadNY.isLoaded)
+        //unload locations on death
+        EnableCayoPerico(false);
+        LoadNY.UnloadNY(this, true);
+    }
+
+
+    private void NorthYanktonLocationCheck()
+    {
+        // Only proceed if North Yankton is loaded
+        if (LoadNY.isLoaded)
         {
-            Function.Call(Hash.SET_RADAR_AS_EXTERIOR_THIS_FRAME);
-            Function.Call(Hash.SET_RADAR_AS_INTERIOR_THIS_FRAME,
-                Game.GenerateHash("h4_fake_islandx"),
-                4700.0f, -5145.0f, 0.0f,
-                0, 0);
-        }
+            // Define the center of North Yankton (X: 4080, Y: -5600)
+            Vector2 northYanktonCenter = new Vector2(4080f, -5600f);
 
+            // Get the player's current position in 2D (X and Y, ignoring Z)
+            Vector2 playerPosition2D = new Vector2(Game.Player.Character.Position.X, Game.Player.Character.Position.Y);
 
-        {
+            // Calculate the distance between the player and the North Yankton center
+            float distanceToNorthYankton = Vector2.Distance(playerPosition2D, northYanktonCenter);
 
-
-
-            if (Game.GameTime - lastSpawnTime > interval)
-        {
-            SpawnDinghiesAtLocations();
-            lastSpawnTime = Game.GameTime;
-        }
-
-            // Draw markers continuously
-            DrawMarkers();
-            // Perform proximity check for Cayo Perico
-
-
-            if (isCayoProximityEnabled)
+            // If the player is more than [X] units away from North Yankton, unload it
+            if (distanceToNorthYankton > 2700f)
             {
-                CayoPericoProximity();
+                LoadNY.UnloadNY(this, true);
             }
-
-            // Check if player is near LSIA location
-            if (Game.Player.Character.Position.DistanceTo(lsiaBlipLocation) < 1.5f)
-            {
-                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to fly to ~y~Cayo Perico~s~");
-            }
-            // Check if player is near Cayo Perico location
-            else if (Game.Player.Character.Position.DistanceTo(cayoBlipLocation) < 1.5f)
-            {
-                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to return to Los Santos");
-            }
-            // Check if player is near North Yankton location
-            else if (Game.Player.Character.Position.DistanceTo(NYlsiaBlip) < 1.5f)
-            {
-                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to fly to ~b~North Yankton~s~");
-            }
-            // Check if player is at North Yankton and can return to LSIA
-            else if (Game.Player.Character.Position.DistanceTo(NY_BlipLocation) < 1.5f)
-            {
-                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to return to Los Santos");
-            }
-
-            // Update Cayo Perico blip visibility
-            cayoBlip.Alpha = isCayoPericoEnabled ? 255 : 0;
-
-            // Update North Yankton blip visibility
-            NorthYBlip.Alpha = LoadNY.isLoaded ? 255 : 0;
-
-            // Update LSIA blip visibility
-            lsiaBlip.Alpha = (!isCayoPericoEnabled && !LoadNY.isLoaded) ? 255 : 0;
-
-            // Update LSIA -> North Yankton blip visibility
-            NorthYlsiaBlip.Alpha = (LoadNY.isLoaded || isCayoPericoEnabled) ? 0 : 255; // || means "or"
-
-
-            //check if player is below Z: 30 each tick
-            NorthYanktonPositionCheck();
-
         }
     }
+
+
+
+
 
 
     private Vector2 cayoCenter = new Vector2(4990f, -5100f);
@@ -1292,52 +1539,9 @@ public class gtamod : Script
     
 
 
-    //***********************************************************************************************************
-    //************************   markers destinations   *********************************************************
-    //***********************************************************************************************************
-
-    //! this pattern is followed: bool toCayoPerico, bool toNY, bool isManualTeleport, bool toNYlsia = false
-    //bool can be either true or false
+    
 
 
-    public bool isF5Pressed = false;
-    private void OnKeyDown(object sender, KeyEventArgs e)
-    {
-        // Check if player is at LSIA and pressed "E" to teleport to Cayo Perico
-        if (e.KeyCode == Keys.E && Game.Player.Character.Position.DistanceTo(lsiaBlipLocation) < 1.5f)
-        {
-            if (!isCayoPericoEnabled)
-            {
-                HandleLocations(true, false, true); // Teleport to Cayo Perico
-            }
-        }
-        // Check if player is at Cayo Perico and pressed "E" to teleport back to Los Santos
-        else if (e.KeyCode == Keys.E && Game.Player.Character.Position.DistanceTo(cayoBlipLocation) < 1.5f)
-        {
-            if (isCayoPericoEnabled)
-            {
-                HandleLocations(false, false, true); // Teleport to Los Santos from Cayo Perico
-                CayoTime();
-            }
-        }
-        // Check if player is at LSIA for North Yankton and pressed "E" to teleport to North Yankton
-        else if (e.KeyCode == Keys.E && Game.Player.Character.Position.DistanceTo(NYlsiaBlip) < 1.5f)
-        {
-            HandleLocations(false, true, true); // Teleport to North Yankton
-        }
-        else if (e.KeyCode == Keys.E && Game.Player.Character.Position.DistanceTo(NY_BlipLocation) < 1.5f)
-        {
-            HandleLocations(false, false, true, true); // Teleport to LSIA from North Yankton
-        }
-        else if (e.KeyCode == Keys.F5)
-        {
-            Function.Call(Hash.TRIGGER_MUSIC_EVENT, "MIC1_TREVOR_PLANE");
-        }
-        else if (e.KeyCode == Keys.F6)
-        {
-            Function.Call(Hash.CANCEL_MUSIC_EVENT, "MIC1_TREVOR_PLANE");
-        }
-    }
 
 
     //***********************************************************************************************************
@@ -1410,10 +1614,6 @@ public class gtamod : Script
             // Load Cayo Perico Island
             Function.Call((Hash)0x9A9D1BA639675CF1, "HeistIsland", true);
 
-
-            
-
-
             // Disable Yankton zone before loading Cayo Perico
             int yanktonZoneId = Function.Call<int>(Hash.GET_ZONE_FROM_NAME_ID, "PrLog");
             Function.Call(Hash.SET_ZONE_ENABLED, yanktonZoneId, false);
@@ -1437,6 +1637,8 @@ public class gtamod : Script
 
 
             Function.Call((Hash)0x5E1460624D194A38, true); // Load the minimap and map
+
+
             Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Disabled_Zones", false, true);
             Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "AZL_DLC_Hei4_Island_Zones", true, true);
             Function.Call(Hash.SET_AMBIENT_ZONE_LIST_STATE_PERSISTENT, "az_dlc_h4_ih_island_big_zone", true, true);
@@ -1460,7 +1662,7 @@ public class gtamod : Script
             Function.Call((Hash)0x53797676AD34A9AA, true); // unknown
             Function.Call((Hash)0xF74B1FFA4A15FBEA, 1); // Enable path nodes so routing works on the island
 
-            
+
 
 
             // Audio
@@ -1475,15 +1677,21 @@ public class gtamod : Script
                 Function.Call(Hash.SET_RADAR_AS_INTERIOR_THIS_FRAME, "h4_fake_islandx", 4700.0f, -5145.0f, 0f, 0);
             }*/
 
+
+            //im trying to enable roaming boats on the island, idk if it works for now.
+            Function.Call(Hash.SET_RANDOM_BOATS, true);
+            Function.Call(Hash.SET_RANDOM_BOATS_MP, true);
+
+
             Script.Wait(500);
 
             Function.Call(Hash.REMOVE_IPL, "h4_islandairstrip_doorsclosed");
             Function.Call(Hash.REQUEST_IPL, "h4_islandairstrip_doorsopen");
             //car spawns
 
-            Function.Call(Hash.REQUEST_IPL, "h4_islandx_barrack_props");
+            /*Function.Call(Hash.REQUEST_IPL, "h4_islandx_barrack_props");
             Function.Call(Hash.REQUEST_IPL, "h4_islandxtower_lod");
-            Function.Call(Hash.REQUEST_IPL, "h4_islandxtower");
+            Function.Call(Hash.REQUEST_IPL, "h4_islandxtower");*/
 
             isCayoPericoEnabled = true;
             Wait(2);
@@ -1495,6 +1703,7 @@ public class gtamod : Script
 
             // Disable scenarios and NPC spawning
             Function.Call(Hash.SET_SCENARIO_GROUP_ENABLED, "Heist_Island_Peds", false); 
+
             Function.Call((Hash)0x5E1460624D194A38, false); //minimap, map
             
             Function.Call((Hash)0x53797676AD34A9AA, false); // unknown
@@ -1534,6 +1743,9 @@ public class gtamod : Script
     private bool isCayoTimeSwitched = false;
     private int previousHour = 0;
     private int previousMinute = 0;
+
+
+
 
 
     private void CayoTime()
@@ -1591,7 +1803,7 @@ public class gtamod : Script
             EnableCayoPerico(false);
             Wait(300);
             teleportLocation = NYlsiaTeleportLocation;
-            LoadNY.UnloadNY(this);
+            LoadNY.UnloadNY(this, false);
 
         }
         else
@@ -1618,4 +1830,7 @@ public class gtamod : Script
 
         isFading = false;
     }
+
+
+
 }
